@@ -7,7 +7,7 @@ from aioshutil import copyfile
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(what)s [%(file)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -40,17 +40,32 @@ async def read_folder(source: AsyncPath, output: AsyncPath) -> None:
 
 async def copy_file(file: AsyncPath, output: AsyncPath) -> None:
     try:
-        suffix = file.suffix.lower()
-        folder_name = suffix.lstrip(".") if suffix else "no_extension"
+        suffixes = file.suffixes
+        
+        full_suffix = suffixes[-1].lower() if suffixes else ""
+        
+        special_prefixes = {".tar", ".min", ".config", ".test"}
+
+        if len(suffixes) >= 2:
+            pre_suffix = suffixes[-2].lower()
+            if pre_suffix in special_prefixes:
+                full_suffix = (pre_suffix + suffixes[-1]).lower()
+
+        folder_name = full_suffix.lstrip(".") if full_suffix else "no_extension"
 
         dest_dir = output / folder_name
         await dest_dir.mkdir(parents=True, exist_ok=True)
 
+        if full_suffix:
+            base_name = file.name[:-len(full_suffix)]
+        else:
+            base_name = file.name
+        
         dest_file = dest_dir / file.name
 
         counter = 1
         while await dest_file.exists():
-            dest_file = dest_dir / f"{file.stem}_{counter}{suffix}"
+            dest_file = dest_dir / f"{base_name}_{counter}{full_suffix}"
             counter += 1
 
         await copyfile(file, dest_file)
@@ -59,6 +74,8 @@ async def copy_file(file: AsyncPath, output: AsyncPath) -> None:
     except Exception as error:
         logger.error("Failed to copy %s: %s", file, error)
 
+    except Exception as error:
+        logger.error("Failed to copy %s: %s", file, error)
 
 
 
