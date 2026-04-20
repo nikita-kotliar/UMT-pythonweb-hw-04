@@ -28,6 +28,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 async def read_folder(source: AsyncPath, output: AsyncPath) -> None:
     files = []
     async for item in source.rglob("*"):
@@ -38,33 +39,21 @@ async def read_folder(source: AsyncPath, output: AsyncPath) -> None:
         for file in files:
             tg.create_task(copy_file(file, output))
 
+
 async def copy_file(file: AsyncPath, output: AsyncPath) -> None:
     try:
-        suffixes = file.suffixes
-        
-        full_suffix = suffixes[-1].lower() if suffixes else ""
-        
-        special_prefixes = {".tar", ".min", ".config", ".test"}
-
-        if len(suffixes) >= 2:
-            pre_suffix = suffixes[-2].lower()
-            if pre_suffix in special_prefixes:
-                full_suffix = (pre_suffix + suffixes[-1]).lower()
+        full_suffix = "".join(AsyncPath(file).suffixes).lower()
 
         folder_name = full_suffix.lstrip(".") if full_suffix else "no_extension"
 
         dest_dir = output / folder_name
         await dest_dir.mkdir(parents=True, exist_ok=True)
 
-        if full_suffix:
-            base_name = file.name[:-len(full_suffix)]
-        else:
-            base_name = file.name
-        
         dest_file = dest_dir / file.name
 
         counter = 1
         while await dest_file.exists():
+            base_name = file.stem if full_suffix else file.name
             dest_file = dest_dir / f"{base_name}_{counter}{full_suffix}"
             counter += 1
 
@@ -73,11 +62,6 @@ async def copy_file(file: AsyncPath, output: AsyncPath) -> None:
 
     except Exception as error:
         logger.error("Failed to copy %s: %s", file, error)
-
-    except Exception as error:
-        logger.error("Failed to copy %s: %s", file, error)
-
-
 
 async def main() -> None:
     args = parse_args()
